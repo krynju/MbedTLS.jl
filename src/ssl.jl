@@ -499,7 +499,7 @@ function authmode!(config::SSLConfig, auth)
 end
 
 function rng!(config::SSLConfig, f_rng::Ptr{Cvoid}, rng)
-    Base.@threadcall((:mbedtls_ssl_conf_rng, libmbedtls), Cvoid,
+    ccall((:mbedtls_ssl_conf_rng, libmbedtls), Cvoid,
         (Ptr{Cvoid}, Ptr{Cvoid}, Any),
         config.data, f_rng, rng)
 end
@@ -541,7 +541,7 @@ function setup!(ctx::SSLContext, conf::SSLConfig)
 end
 
 function dbg!(conf::SSLConfig, f::Ptr{Cvoid}, p)
-    Base.@threadcall((:mbedtls_ssl_conf_dbg, libmbedtls), Cvoid,
+    ccall((:mbedtls_ssl_conf_dbg, libmbedtls), Cvoid,
         (Ptr{Cvoid}, Ptr{Cvoid}, Any),
         conf.data, f, p)
 end
@@ -627,7 +627,7 @@ end
 
 function ssl_handshake(ctx::SSLContext)
     n = @lockdata ctx begin
-        Base.@threadcall((:mbedtls_ssl_handshake, libmbedtls), Cint,
+        ccall((:mbedtls_ssl_handshake, libmbedtls), Cint,
               (Ptr{Cvoid},), ctx.data)
     end
 end
