@@ -19,7 +19,7 @@ mbed_ioerr(ret) = throw(Base.IOError(strerror(ret), ret))
 
 function strerror(ret, bufsize=1000)
     buf = Vector{UInt8}(undef, bufsize)
-    ccall((:mbedtls_strerror, libmbedcrypto), Cint,
+    Base.@threadcall((:mbedtls_strerror, libmbedcrypto), Cint,
         (Cint, Ptr{Cvoid}, Csize_t),
         ret, buf, bufsize)
     s = GC.@preserve buf unsafe_string(pointer(buf))
