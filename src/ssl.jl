@@ -19,7 +19,7 @@ mutable struct SSLConfig
         finalizer(x->begin
             data = x.data
             @async begin
-                ccall((:mbedtls_ssl_config_free, libmbedtls),
+                Base.@threadcall((:mbedtls_ssl_config_free, libmbedtls),
                       Cvoid, (Ptr{Cvoid},), data)
                 Libc.free(data)
             end
@@ -52,7 +52,7 @@ mutable struct SSLContext <: IO
         finalizer(x->begin
             data = x.data
             @async begin
-                ccall((:mbedtls_ssl_free, libmbedtls),
+                Base.@threadcall((:mbedtls_ssl_free, libmbedtls),
                       Cvoid, (Ptr{Cvoid},), ctx.data)
                 Libc.free(ctx.data)
             end
@@ -487,13 +487,13 @@ end
 
 function config_defaults!(config::SSLConfig; endpoint=MBEDTLS_SSL_IS_CLIENT,
     transport=MBEDTLS_SSL_TRANSPORT_STREAM, preset=MBEDTLS_SSL_PRESET_DEFAULT)
-    @err_check Base.@threadcall((:mbedtls_ssl_config_defaults, libmbedtls), Cint,
+    @err_check ccall((:mbedtls_ssl_config_defaults, libmbedtls), Cint,
         (Ptr{Cvoid}, Cint, Cint, Cint),
         config.data, endpoint, transport, preset)
 end
 
 function authmode!(config::SSLConfig, auth)
-    Base.@threadcall((:mbedtls_ssl_conf_authmode, libmbedtls), Cvoid,
+    ccall((:mbedtls_ssl_conf_authmode, libmbedtls), Cvoid,
         (Ptr{Cvoid}, Cint),
         config.data, auth)
 end
@@ -511,7 +511,7 @@ end
 
 function ca_chain!(config::SSLConfig, chain=crt_parse(DEFAULT_CERT[]))
     config.chain = chain
-    Base.@threadcall((:mbedtls_ssl_conf_ca_chain, libmbedtls), Cvoid,
+    ccall((:mbedtls_ssl_conf_ca_chain, libmbedtls), Cvoid,
         (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}),
         config.data, chain.data, C_NULL)
 end
@@ -522,7 +522,7 @@ Enable / Disable renegotiation support for connection when initiated by peer
 See: https://tls.mbed.org/api/ssl_8h.html#aad4f50fc1c0a018fd5eb18fd9621d0d3
 """
 function ssl_conf_renegotiation!(config::SSLConfig, renegotiation)
-    Base.@threadcall((:mbedtls_ssl_conf_renegotiation, libmbedtls), Cvoid,
+    ccall((:mbedtls_ssl_conf_renegotiation, libmbedtls), Cvoid,
         (Ptr{Cvoid}, Cint),
         config.data, renegotiation)
 end
@@ -530,7 +530,7 @@ end
 function own_cert!(config::SSLConfig, cert::CRT, key::PKContext)
     config.cert = cert
     config.key = key
-    @err_check Base.@threadcall((:mbedtls_ssl_conf_own_cert, libmbedtls), Cint,
+    @err_check ccall((:mbedtls_ssl_conf_own_cert, libmbedtls), Cint,
         (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}),
         config.data, cert.data, key.data)
 end
@@ -565,20 +565,20 @@ end
     VERBOSE)
 
 function set_dbg_level(level)
-    Base.@threadcall((:mbedtls_debug_set_threshold, libmbedtls), Cvoid,
+    ccall((:mbedtls_debug_set_threshold, libmbedtls), Cvoid,
         (Cint,), Cint(level))
     nothing
 end
 
 function set_alpn!(conf::SSLConfig, protos)
     conf.alpn_protos = protos
-    @err_check Base.@threadcall((:mbedtls_ssl_conf_alpn_protocols, libmbedtls), Cint,
+    @err_check ccall((:mbedtls_ssl_conf_alpn_protocols, libmbedtls), Cint,
                      (Ptr{Cvoid}, Ptr{Ptr{Cchar}}), conf.data, protos)
     nothing
 end
 
 function alpn_proto(ctx::SSLContext)
-    rv = Base.@threadcall((:mbedtls_ssl_get_alpn_protocol, libmbedtls), Ptr{Cchar},
+    rv = ccall((:mbedtls_ssl_get_alpn_protocol, libmbedtls), Ptr{Cchar},
                (Ptr{Cvoid},), ctx.data)
     unsafe_string(rv)
 end
@@ -619,7 +619,7 @@ end
 
 function ssl_setup(ctx::SSLContext, conf::SSLConfig)
     @lockdata ctx begin
-        @err_check Base.@threadcall((:mbedtls_ssl_setup, libmbedtls), Cint,
+        @err_check ccall((:mbedtls_ssl_setup, libmbedtls), Cint,
             (Ptr{Cvoid}, Ptr{Cvoid}),
             ctx.data, conf.data)
     end

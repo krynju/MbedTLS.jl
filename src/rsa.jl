@@ -51,7 +51,7 @@ function mpi_import!(mpi::Ptr{mbedtls_mpi}, b::BigInt)
 end
 
 function mpi_size(mpi::Ptr{mbedtls_mpi})
-    ccall((:mbedtls_mpi_size, libmbedcrypto), Csize_t, (Ptr{mbedtls_mpi},), mpi)
+    Base.@threadcall((:mbedtls_mpi_size, libmbedcrypto), Csize_t, (Ptr{mbedtls_mpi},), mpi)
 end
 
 function pubkey_from_vals!(ctx::RSA, e::BigInt, n::BigInt)
@@ -61,7 +61,7 @@ function pubkey_from_vals!(ctx::RSA, e::BigInt, n::BigInt)
     nptr_size = mpi_size(Nptr)
     unsafe_store!(Ptr{Csize_t}(ctx.data+fieldoffset(mbedtls_rsa_context,2 #=:len =#)),
         nptr_size)
-    @err_check ccall((:mbedtls_rsa_check_pubkey, libmbedcrypto), Cint,
+    @err_check Base.@threadcall((:mbedtls_rsa_check_pubkey, libmbedcrypto), Cint,
         (Ptr{Cvoid},), ctx.data)
     ctx
 end
@@ -70,20 +70,20 @@ function verify(ctx::RSA, hash_alg::MDKind, hash, signature, rng = nothing; usin
     (!using_public && rng == nothing) &&
         error("Private key verification requires the rng")
     # All errors, including validation errors throw
-    @err_check ccall((:mbedtls_rsa_pkcs1_verify, libmbedcrypto), Cint,
-        (Ptr{Cvoid}, Ptr{Cvoid}, Any, Cint, Cint, Csize_t, Ptr{UInt8}, Ptr{UInt8}),
+    @err_check Base.@threadcall((:mbedtls_rsa_pkcs1_verify, libmbedcrypto), Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Cint, Cint, Csize_t, Ptr{UInt8}, Ptr{UInt8}),
         ctx.data,
         rng == nothing ? C_NULL : c_rng[],
-        rng == nothing ? Ref{Any}() : rng,
+        rng == nothing ? Base.unsafe_convert(Ptr{Cvoid},Ref{Any}()) : Base.unsafe_convert(Ptr{Cvoid}, Ref(rng)),
         using_public ? 0 : 1,
         hash_alg, sizeof(hash), hash, signature)
 end
 
 
 function gen_key!(ctx::RSA, f_rng, rng, nbits, exponent)
-    @err_check ccall((:mbedtls_rsa_gen_key, libmbedcrypto), Cint,
-        (Ptr{Cvoid}, Ptr{Cvoid}, Any, Cint, Cint),
-        ctx.data, f_rng, rng, nbits, exponent)
+    @err_check Base.@threadcall((:mbedtls_rsa_gen_key, libmbedcrypto), Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Cint, Cint),
+        ctx.data, f_rng, Base.unsafe_convert(Ptr{Cvoid}, Ref(rng)), nbits, exponent)
     ctx
 end
 
@@ -95,15 +95,15 @@ function gen_key(rng::AbstractRNG, nbits=2048, exponent=65537)
 end
 
 function public(ctx::RSA, input, output)
-    @err_check ccall((:mbedtls_rsa_public, libmbedcrypto), Cint,
+    @err_check Base.@threadcall((:mbedtls_rsa_public, libmbedcrypto), Cint,
         (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}), ctx.data, input, output)
     output
 end
 
 function private(ctx::RSA, f_rng, rng, input, output)
-    @err_check ccall((:mbedtls_rsa_private, libmbedcrypto), Cint,
-        (Ptr{Cvoid}, Ptr{Cvoid}, Any, Ptr{Cvoid}, Ptr{Cvoid}),
-        ctx.data, f_rng, rng, input, output)
+    @err_check Base.@threadcall((:mbedtls_rsa_private, libmbedcrypto), Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}),
+        ctx.data, f_rng, Base.unsafe_convert(Ptr{Cvoid}, Ref(rng)), input, output)
     output
 end
 
